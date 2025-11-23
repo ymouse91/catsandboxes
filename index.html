@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cats &amp; Boxes – Peli</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  		<!-- iOS PWA -liput -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<!-- Yleinen väriteema (safari, android ym.) -->
+<meta name="theme-color" content="#0F172A">
+
+<!-- Web manifesti (nimi voi olla myös manifest.json, jos niin olet tehnyt) -->
+<link rel="manifest" href="manifest.json">
+
+<!-- iOS:lle pitää olla erikseen apple-touch-icon -->
+<link rel="apple-touch-icon" sizes="180x180" href="./pwa_icon_180.png">
+  <style>
+    :root {
+      --board-size: 5;
+      --cell: 64px;
+      --bg: #0f172a;
+      --panel: #111827;
+      --ink: #f9fafb;
+      --muted: #9ca3af;
+      --accent: #facc15;
+      --error: #f97316;
+      --ok: #22c55e;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, sans-serif;
+      background: radial-gradient(circle at top, #1f2937 0, #020617 55%);
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+      gap: 12px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      text-align: center;
+    }
+    .subtitle {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: -4px;
+      margin-bottom: 4px;
+    }
+    .app {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      max-width: 900px;
+      width: 100%;
+      justify-content: center;
+    }
+    .board-wrapper {
+      background: var(--panel);
+      padding: 8px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(var(--board-size), var(--cell));
+      grid-template-rows: repeat(var(--board-size), var(--cell));
+      gap: 2px;
+      background: #020617;
+      padding: 4px;
+      border-radius: 10px;
+    }
+    .cell {
+      width: var(--cell);
+      height: var(--cell);
+      background: #1f2933;
+      border-radius: 6px;
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .cell:hover {
+      outline: 2px solid rgba(248, 250, 252, 0.25);
+    }
+    .coord-label {
+      position: absolute;
+      inset: 4px auto auto 6px;
+      font-size: 0.5rem;
+      color: var(--muted);
+      opacity: 0.6;
+      z-index: 1;
+    }
+
+    .cat {
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 25%, #f9fafb 0, #d1d5db 30%, #6b7280 60%, #020617 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      z-index: 2;
+      box-shadow: 0 0 0 2px #020617, 0 6px 10px rgba(0,0,0,0.6);
+    }
+    .cat::after {
+      content: "😺";
+    }
+
+    .piece-tile,
+    .piece-box {
+      position: absolute;
+      inset: 2px;
+      border-radius: 6px;
+      border: 2px solid rgba(15, 23, 42, 0.85);
+      box-shadow: 0 4px 7px rgba(0,0,0,0.6) inset;
+      z-index: 3;
+    }
+
+    .piece-tile-P1 { background: linear-gradient(135deg, #facc15, #eab308); }
+    .piece-tile-P2 { background: linear-gradient(135deg, #a855f7, #4c1d95); }
+    .piece-tile-P3 { background: linear-gradient(135deg, #38bdf8, #1d4ed8); }
+    .piece-tile-P4 { background: linear-gradient(135deg, #4ade80, #166534); }
+
+    .piece-box-P1 {
+      background: conic-gradient(from 180deg at 50% 50%, #fef9c3, #facc15, #eab308, #fef9c3);
+    }
+    .piece-box-P2 {
+      background: conic-gradient(from 180deg at 50% 50%, #f5f3ff, #a855f7, #4c1d95, #f5f3ff);
+    }
+    .piece-box-P3 {
+      background: conic-gradient(from 180deg at 50% 50%, #e0f2fe, #38bdf8, #1d4ed8, #e0f2fe);
+    }
+    .piece-box-P4 {
+      background: conic-gradient(from 180deg at 50% 50%, #dcfce7, #4ade80, #166534, #dcfce7);
+    }
+
+    .piece-overlay-anchor {
+      position: absolute;
+      inset: auto auto 3px 3px;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      border: 1px solid rgba(248,250,252,0.9);
+      background: rgba(15,23,42,0.7);
+      z-index: 4;
+    }
+
+    .panel {
+      background: var(--panel);
+      padding: 10px;
+      border-radius: 12px;
+      min-width: 260px;
+      max-width: 320px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .panel h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .piece-preview-area {
+      padding: 8px;
+      border-radius: 10px;
+      background: #020617;
+      height: 96px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .piece-preview-empty {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .piece-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 24px);
+      grid-template-rows: repeat(3, 24px);
+      gap: 2px;
+    }
+    .preview-cell {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      background: #0b1120;
+      position: relative;
+    }
+    .preview-tile,
+    .preview-box {
+      position: absolute;
+      inset: 2px;
+      border-radius: 4px;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.6) inset;
+    }
+    .preview-tile-P1 { background: linear-gradient(135deg, #facc15, #eab308); }
+    .preview-tile-P2 { background: linear-gradient(135deg, #a855f7, #4c1d95); }
+    .preview-tile-P3 { background: linear-gradient(135deg, #38bdf8, #1d4ed8); }
+    .preview-tile-P4 { background: linear-gradient(135deg, #4ade80, #166534); }
+
+    .preview-box-P1 {
+      background: conic-gradient(from 180deg at 50% 50%, #fef9c3, #facc15, #eab308, #fef9c3);
+    }
+    .preview-box-P2 {
+      background: conic-gradient(from 180deg at 50% 50%, #f5f3ff, #a855f7, #4c1d95, #f5f3ff);
+    }
+    .preview-box-P3 {
+      background: conic-gradient(from 180deg at 50% 50%, #e0f2fe, #38bdf8, #1d4ed8, #e0f2fe);
+    }
+    .preview-box-P4 {
+      background: conic-gradient(from 180deg at 50% 50%, #dcfce7, #4ade80, #166534, #dcfce7);
+    }
+
+    .preview-anchor {
+      position: absolute;
+      inset: auto auto 2px 2px;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      border: 1px solid #e5e7eb;
+      background: rgba(15,23,42,0.9);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .controls button {
+      flex: 1 1 48%;
+      border-radius: 999px;
+      border: 0;
+      padding: 6px 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #1f2937;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .controls button.primary {
+      background: var(--accent);
+      color: #111827;
+    }
+    .controls button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .message {
+      min-height: 1.2em;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .message.ok {
+      color: var(--ok);
+      font-weight: 600;
+    }
+    .message.error {
+      color: var(--error);
+      font-weight: 600;
+    }
+
+    .puzzle-info {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .help {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    @media (max-width: 700px) {
+      :root {
+        --cell: 54px;
+      }
+    }
+    @media (max-width: 480px) {
+      :root {
+        --cell: 48px;
+      }
+      h1 {
+        font-size: 1.05rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Cats &amp; Boxes – Peli</h1>
+ <!--  <div class="subtitle">Pulmat ladataan tiedostosta cats_boxes_puzzles.json</div> -->
+
+  <div class="app">
+    <div class="board-wrapper">
+      <div id="board" class="board"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Valittu palikka</h2>
+      <div id="piecePreview" class="piece-preview-area">
+        <div class="piece-preview-empty">
+          Napauta jotakin palikkaa laudalla nostaaksesi sen.
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="rotatePiece">⟳ Käännä</button>
+        <button id="resetPuzzle" class="primary">Alusta pulma</button>
+      </div>
+      <div class="controls">
+        <button id="solveStep">Ratkaise</button>
+        <button id="nextStep" disabled>Seuraava askel</button>
+      </div>
+      <div class="controls">
+        <button id="prevPuzzle">← Edellinen</button>
+        <button id="nextPuzzle">Seuraava →</button>
+      </div>
+
+      <div id="message" class="message"></div>
+      <div id="puzzleInfo" class="puzzle-info"></div>
+
+      <div class="help">
+        <ul>
+ 
+          <li>Esikatselussa näet palikan muodon (3×3).</li>
+          <li>Käännä palikkaa “⟳ Käännä” -napilla (90° oikealle).</li>
+          <li>Napauta lautaa, mihin haluat palikan jonkin ruudun osuvan.</li>
+          <li><strong>Ratkaise</strong> etsii ratkaisun NYKYISESTÄ täyden laudan tilasta ja näyttää sen vaihe vaiheelta “Seuraava askel” -napilla.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_PUZZLES = [
+      {
+        "id": 1,
+        "name": "Pulma 1",
+        "cats": [
+          { "x": 0, "y": 0 },
+          { "x": 4, "y": 0 },
+          { "x": 2, "y": 1 },
+          { "x": 0, "y": 3 },
+          { "x": 3, "y": 4 }
+        ],
+        "pieces": [
+          { "id": "P1", "x": 2, "y": 0, "ori": 0 },
+          { "id": "P2", "x": 0, "y": 3, "ori": 3 },
+          { "id": "P3", "x": 3, "y": 1, "ori": 0 },
+          { "id": "P4", "x": 0, "y": 0, "ori": 0 }
+        ]
+      }
+    ];
+
+    let PUZZLES = [];
+    let currentPuzzleIndex = 0;
+
+    const BOARD_SIZE = 5;
+
+    const cats = new Set();
+    function coordKey(x, y) { return `${x},${y}`; }
+    function catsAt(x, y) { return cats.has(coordKey(x, y)); }
+
+    const BASE_PIECES = [
+      {
+        id: 'P1',
+        name: 'Palikka 1',
+        pattern: [
+          ['X','B'],
+          ['O','X'],
+          ['O','X']
+        ]
+      },
+      {
+        id: 'P2',
+        name: 'Palikka 2',
+        pattern: [
+          ['O','X'],
+          ['X','B'],
+          ['O','X']
+        ]
+      },
+      {
+        id: 'P3',
+        name: 'Palikka 3',
+        pattern: [
+          ['O','X'],
+          ['O','B'],
+          ['X','X']
+        ]
+      },
+      {
+        id: 'P4',
+        name: 'Palikka 4',
+        pattern: [
+          ['O','X'],
+          ['B','X'],
+          ['O','X','B']
+        ]
+      }
+    ];
+
+    function buildCellsFromPattern(pattern) {
+      const cells = [];
+      for (let y = 0; y < pattern.length; y++) {
+        for (let x = 0; x < pattern[y].length; x++) {
+          const ch = pattern[y][x];
+          if (ch === 'X' || ch === 'B') {
+            cells.push({ dx: x, dy: y, kind: ch === 'X' ? 'tile' : 'box' });
+          }
+        }
+      }
+      const minX = Math.min(...cells.map(c => c.dx));
+      const minY = Math.min(...cells.map(c => c.dy));
+      cells.forEach(c => { c.dx -= minX; c.dy -= minY; });
+      return cells;
+    }
+
+    function rotateCells90(cells) {
+      const rotated = cells.map(c => ({
+        dx: c.dy,
+        dy: -c.dx,
+        kind: c.kind
+      }));
+      const minX = Math.min(...rotated.map(c => c.dx));
+      const minY = Math.min(...rotated.map(c => c.dy));
+      rotated.forEach(c => { c.dx -= minX; c.dy -= minY; });
+      return rotated;
+    }
+
+    function buildPieceDefs() {
+      const pieces = [];
+      for (const base of BASE_PIECES) {
+        const baseCells = buildCellsFromPattern(base.pattern);
+        const variants = [];
+        let v0 = baseCells;
+        let v1 = rotateCells90(v0);
+        let v2 = rotateCells90(v1);
+        let v3 = rotateCells90(v2);
+        variants.push(v0, v1, v2, v3);
+
+        const unique = [];
+        const seen = new Set();
+        variants.forEach(cells => {
+          const key = cells
+            .slice()
+            .sort((a,b) => a.dx - b.dx || a.dy - b.dy || a.kind.localeCompare(b.kind))
+            .map(c => `${c.dx},${c.dy},${c.kind}`)
+            .join('|');
+          if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(cells);
+          }
+        });
+
+        pieces.push({
+          id: base.id,
+          name: base.name,
+          variants: unique
+        });
+      }
+      return pieces;
+    }
+
+    const PIECES = buildPieceDefs();
+    const pieceState = PIECES.map(p => ({
+      id: p.id,
+      name: p.name,
+      variants: p.variants,
+      orientation: 0,
+      onBoard: false,
+      anchorX: null,
+      anchorY: null
+    }));
+
+    let selectedPieceId = null;
+
+    function getPieceDef(id) { return PIECES.find(p => p.id === id); }
+    function getPieceState(id) { return pieceState.find(p => p.id === id); }
+
+    function buildOccupancy(excludeId = null) {
+      const occ = [];
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        occ[y] = [];
+        for (let x = 0; x < BOARD_SIZE; x++) occ[y][x] = null;
+      }
+      for (const ps of pieceState) {
+        if (!ps.onBoard) continue;
+        if (excludeId && ps.id === excludeId) continue;
+
+        const def = getPieceDef(ps.id);
+        const cells = def.variants[ps.orientation];
+        for (const c of cells) {
+          const bx = ps.anchorX + c.dx;
+          const by = ps.anchorY + c.dy;
+          if (bx >= 0 && bx < BOARD_SIZE && by >= 0 && by < BOARD_SIZE) {
+            occ[by][bx] = { pieceId: ps.id, kind: c.kind };
+          }
+        }
+      }
+      return occ;
+    }
+
+    function canPlacePiece(pieceId, orientation, anchorX, anchorY) {
+      const def = getPieceDef(pieceId);
+      const cells = def.variants[orientation];
+      const occ = buildOccupancy(pieceId);
+
+      for (const c of cells) {
+        const bx = anchorX + c.dx;
+        const by = anchorY + c.dy;
+        if (bx < 0 || bx >= BOARD_SIZE || by < 0 || by >= BOARD_SIZE) {
+          return { ok: false, reason: 'Palikka menee laudan ulkopuolelle.' };
+        }
+        if (occ[by][bx] !== null) {
+          return { ok: false, reason: 'Palikka menee toisen palikan päälle.' };
+        }
+        if (c.kind === 'tile' && catsAt(bx, by)) {
+          return { ok: false, reason: 'Täysi laatta ei saa peittää kissaa.' };
+        }
+      }
+      return { ok: true };
+    }
+
+    function findPlacementForClick(pieceId, orientation, clickX, clickY) {
+      const def = getPieceDef(pieceId);
+      const cells = def.variants[orientation];
+
+      const candidates = [...cells].sort((a,b) => {
+        if (a.kind === b.kind) return 0;
+        return a.kind === 'box' ? -1 : 1;
+      });
+
+      for (const c of candidates) {
+        const anchorX = clickX - c.dx;
+        const anchorY = clickY - c.dy;
+        const check = canPlacePiece(pieceId, orientation, anchorX, anchorY);
+        if (check.ok) return { ok: true, anchorX, anchorY };
+      }
+      return { ok: false };
+    }
+
+    function isSolved() {
+      const occ = buildOccupancy(null);
+      for (const key of cats) {
+        const [xs, ys] = key.split(',');
+        const x = parseInt(xs, 10);
+        const y = parseInt(ys, 10);
+        const cell = occ[y][x];
+        if (!cell || cell.kind !== 'box') return false;
+      }
+      return true;
+    }
+
+    const boardEl = document.getElementById('board');
+    const messageEl = document.getElementById('message');
+    const puzzleInfoEl = document.getElementById('puzzleInfo');
+    const piecePreviewEl = document.getElementById('piecePreview');
+    const rotateBtn = document.getElementById('rotatePiece');
+    const resetBtn = document.getElementById('resetPuzzle');
+    const prevPuzzleBtn = document.getElementById('prevPuzzle');
+    const nextPuzzleBtn = document.getElementById('nextPuzzle');
+    const solveStepBtn = document.getElementById('solveStep');
+    const nextStepBtn = document.getElementById('nextStep');
+
+    function setMessage(text, type = '') {
+      messageEl.textContent = text;
+      messageEl.className = 'message';
+      if (type) messageEl.classList.add(type);
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      const occ = buildOccupancy(null);
+
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          const cellEl = document.createElement('div');
+          cellEl.className = 'cell';
+          cellEl.dataset.x = x;
+          cellEl.dataset.y = y;
+
+          const coord = document.createElement('div');
+          coord.className = 'coord-label';
+          coord.textContent = `${x},${y}`;
+          cellEl.appendChild(coord);
+
+          if (catsAt(x, y)) {
+            const catEl = document.createElement('div');
+            catEl.className = 'cat';
+            cellEl.appendChild(catEl);
+          }
+
+          const occCell = occ[y][x];
+          if (occCell) {
+            const pieceCell = document.createElement('div');
+            if (occCell.kind === 'box') {
+              pieceCell.classList.add('piece-box', `piece-box-${occCell.pieceId}`);
+            } else {
+              pieceCell.classList.add('piece-tile', `piece-tile-${occCell.pieceId}`);
+            }
+            cellEl.appendChild(pieceCell);
+          }
+
+          for (const ps of pieceState) {
+            if (!ps.onBoard) continue;
+            if (ps.anchorX === x && ps.anchorY === y) {
+              const anchor = document.createElement('div');
+              anchor.className = 'piece-overlay-anchor';
+              cellEl.appendChild(anchor);
+            }
+          }
+
+          cellEl.addEventListener('click', onBoardCellClick);
+          boardEl.appendChild(cellEl);
+        }
+      }
+    }
+
+    function renderPuzzleInfo() {
+      if (!PUZZLES.length) {
+        puzzleInfoEl.textContent = 'Pulmia ei ladattu.';
+        return;
+      }
+      const p = PUZZLES[currentPuzzleIndex];
+      puzzleInfoEl.textContent = `Pulma ${p.id}: ${p.name} (${currentPuzzleIndex+1}/${PUZZLES.length})`;
+    }
+
+    function renderPiecePreview() {
+      piecePreviewEl.innerHTML = '';
+      if (!selectedPieceId) {
+        const empty = document.createElement('div');
+        empty.className = 'piece-preview-empty';
+        empty.textContent = 'Napauta palikkaa laudalla nostaaksesi sen.';
+        piecePreviewEl.appendChild(empty);
+        return;
+      }
+
+      const ps = getPieceState(selectedPieceId);
+      const def = getPieceDef(ps.id);
+      const cells = def.variants[ps.orientation];
+
+      const grid = document.createElement('div');
+      grid.className = 'piece-preview-grid';
+
+      const gridSize = 3;
+      for (let py = 0; py < gridSize; py++) {
+        for (let px = 0; px < gridSize; px++) {
+          const cellDiv = document.createElement('div');
+          cellDiv.className = 'preview-cell';
+
+          const cell = cells.find(c => c.dx === px && c.dy === py);
+          if (cell) {
+            const inner = document.createElement('div');
+            if (cell.kind === 'box') {
+              inner.className = `preview-box preview-box-${ps.id}`;
+            } else {
+              inner.className = `preview-tile preview-tile-${ps.id}`;
+            }
+            cellDiv.appendChild(inner);
+
+            if (cell.dx === 0 && cell.dy === 0) {
+              const anchor = document.createElement('div');
+              anchor.className = 'preview-anchor';
+              cellDiv.appendChild(anchor);
+            }
+          }
+
+          grid.appendChild(cellDiv);
+        }
+      }
+
+      piecePreviewEl.appendChild(grid);
+    }
+
+    function renderAll() {
+      renderBoard();
+      renderPuzzleInfo();
+      renderPiecePreview();
+      updateStepButtons();
+    }
+
+    function applyPuzzle(puzzle) {
+      cats.clear();
+      for (const c of puzzle.cats) {
+        if (
+          typeof c.x === 'number' && typeof c.y === 'number' &&
+          c.x >= 0 && c.x < BOARD_SIZE &&
+          c.y >= 0 && c.y < BOARD_SIZE
+        ) {
+          cats.add(coordKey(c.x, c.y));
+        }
+      }
+
+      for (const ps of pieceState) {
+        ps.onBoard = false;
+        ps.anchorX = null;
+        ps.anchorY = null;
+        ps.orientation = 0;
+      }
+
+      for (const p of puzzle.pieces) {
+        const ps = getPieceState(p.id);
+        if (!ps) continue;
+        const ori = (typeof p.ori === 'number') ? p.ori : 0;
+        const check = canPlacePiece(ps.id, ori, p.x, p.y);
+        if (!check.ok) {
+          console.warn('JSON-pulman palikka ei kelpaa:', p, check.reason);
+          continue;
+        }
+        ps.onBoard = true;
+        ps.anchorX = p.x;
+        ps.anchorY = p.y;
+        ps.orientation = ori;
+      }
+
+      selectedPieceId = null;
+      clearSolverSteps();
+    }
+
+    function gotoPuzzle(idx) {
+      if (!PUZZLES.length) return;
+      const len = PUZZLES.length;
+      currentPuzzleIndex = (idx + len) % len;
+      applyPuzzle(PUZZLES[currentPuzzleIndex]);
+      renderAll();
+      setMessage(`Ladattu pulma ${currentPuzzleIndex+1}/${len}.`, '');
+    }
+
+    function onBoardCellClick(e) {
+      const x = parseInt(e.currentTarget.dataset.x, 10);
+      const y = parseInt(e.currentTarget.dataset.y, 10);
+
+      if (!selectedPieceId) {
+        const occ = buildOccupancy(null);
+        const occCell = occ[y][x];
+        if (!occCell) {
+          setMessage('Tässä ruudussa ei ole palikkaa.', '');
+          return;
+        }
+        const ps = getPieceState(occCell.pieceId);
+        if (!ps || !ps.onBoard) return;
+
+        ps.onBoard = false;
+        selectedPieceId = ps.id;
+        clearSolverSteps();
+        renderAll();
+        setMessage(`Nostit ${ps.name} käteen.`, '');
+        return;
+      }
+
+      const ps = getPieceState(selectedPieceId);
+      if (!ps) return;
+      const orientation = ps.orientation;
+
+      const placement = findPlacementForClick(ps.id, orientation, x, y);
+      if (!placement.ok) {
+        setMessage('Palikkaa ei voi asettaa tähän (reuna, törmäys tai kissa laatan alla).', 'error');
+        return;
+      }
+
+      ps.onBoard = true;
+      ps.anchorX = placement.anchorX;
+      ps.anchorY = placement.anchorY;
+      selectedPieceId = null;
+      clearSolverSteps();
+      renderAll();
+
+      if (isSolved()) {
+        setMessage('Ratkaistu! Kaikki kissat ovat laatikoissa.', 'ok');
+      } else {
+        setMessage(`${ps.name} asetettu laudalle.`, '');
+      }
+    }
+
+    // --- SOLVERI + ASKELIT (täydestä laudasta BFS) ---
+
+    let solverSteps = null;
+    let solverIndex = -1;
+
+    function clearSolverSteps() {
+      solverSteps = null;
+      solverIndex = -1;
+      updateStepButtons();
+    }
+
+    function captureSnapshot() {
+      return pieceState.map(ps => ({
+        id: ps.id,
+        onBoard: ps.onBoard,
+        anchorX: ps.anchorX,
+        anchorY: ps.anchorY,
+        orientation: ps.orientation
+      }));
+    }
+
+    function applySnapshot(snapshot) {
+      for (const snap of snapshot) {
+        const ps = getPieceState(snap.id);
+        if (!ps) continue;
+        ps.onBoard = !!snap.onBoard;
+        ps.anchorX = snap.anchorX;
+        ps.anchorY = snap.anchorY;
+        ps.orientation = snap.orientation;
+      }
+      selectedPieceId = null;
+    }
+
+    function updateStepButtons() {
+      if (!solverSteps || solverSteps.length === 0) {
+        nextStepBtn.disabled = true;
+      } else {
+        nextStepBtn.disabled = false;
+      }
+    }
+
+    // Apufunktio: occupancy annetusta tilasta (ei globaalista pieceStatesta)
+    function buildOccupancyFromState(state) {
+      const occ = Array.from({length: BOARD_SIZE}, () =>
+        Array.from({length: BOARD_SIZE}, () => null)
+      );
+      for (const s of state) {
+        const def = getPieceDef(s.id);
+        const cells = def.variants[s.orientation];
+        for (const c of cells) {
+          const bx = s.anchorX + c.dx;
+          const by = s.anchorY + c.dy;
+          if (bx < 0 || bx >= BOARD_SIZE || by < 0 || by >= BOARD_SIZE) {
+            return null; // laudan ulkopuolella -> virheellinen tila
+          }
+          if (occ[by][bx]) {
+            return null; // päällekkäisyys -> virheellinen
+          }
+          occ[by][bx] = { pieceId: s.id, kind: c.kind };
+        }
+      }
+      return occ;
+    }
+
+    function isSolvedState(state) {
+      const occ = buildOccupancyFromState(state);
+      if (!occ) return false;
+      for (const key of cats) {
+        const [xs, ys] = key.split(',');
+        const x = parseInt(xs, 10);
+        const y = parseInt(ys, 10);
+        const cell = occ[y][x];
+        if (!cell || cell.kind !== 'box') return false;
+      }
+      return true;
+    }
+
+    function stateKey(state) {
+      const sorted = [...state].sort((a,b) => a.id.localeCompare(b.id));
+      return sorted.map(s => `${s.id}:${s.anchorX},${s.anchorY},${s.orientation}`).join('|');
+    }
+
+    // rakentaa BFS-ratkaisun NYKYISESTÄ laudasta
+    function solveFromCurrentBoard() {
+      // vaaditaan että kaikki palikat ovat laudalla
+      for (const ps of pieceState) {
+        if (!ps.onBoard) {
+          setMessage('Aseta ensin kaikki palikat laudalle, ennen kuin käytät solveria.', 'error');
+          return null;
+        }
+      }
+
+      // lähtötila
+      const startState = pieceState.map(ps => ({
+        id: ps.id,
+        anchorX: ps.anchorX,
+        anchorY: ps.anchorY,
+        orientation: ps.orientation
+      }));
+
+      if (!buildOccupancyFromState(startState)) {
+        setMessage('Nykyinen asettelu ei ole sääntöjen mukainen (palikat menevät päällekkäin tai ulos laudalta).', 'error');
+        return null;
+      }
+
+      if (isSolvedState(startState)) {
+        setMessage('Pulma on jo ratkaistu.', 'ok');
+        return [startState];
+      }
+
+      const queue = [];
+      const parents = new Map(); // key -> { parentKey, state }
+
+      const startKey = stateKey(startState);
+      queue.push(startState);
+      parents.set(startKey, { parentKey: null, state: startState });
+
+      while (queue.length) {
+        const cur = queue.shift();
+        const curKey = stateKey(cur);
+
+        const occBase = buildOccupancyFromState(cur);
+        if (!occBase) continue; // varmuuden vuoksi
+
+        // generoidaan kaikki siirrot: valitse palikka, uusi ori + ankkuri
+        for (let i = 0; i < cur.length; i++) {
+          const curPiece = cur[i];
+          const def = getPieceDef(curPiece.id);
+
+          for (let ori = 0; ori < def.variants.length; ori++) {
+            const cells = def.variants[ori];
+
+            for (let ay = 0; ay < BOARD_SIZE; ay++) {
+              for (let ax = 0; ax < BOARD_SIZE; ax++) {
+
+                if (ori === curPiece.orientation &&
+                    ax === curPiece.anchorX &&
+                    ay === curPiece.anchorY) {
+                  continue; // ei turhaa "siirtoa"
+                }
+
+                let ok = true;
+
+                // tarkista vain tämä palikka, muut pysyvät paikallaan
+                for (const c of cells) {
+                  const bx = ax + c.dx;
+                  const by = ay + c.dy;
+                  if (bx < 0 || bx >= BOARD_SIZE || by < 0 || by >= BOARD_SIZE) {
+                    ok = false; break;
+                  }
+                  const occCell = occBase[by][bx];
+                  if (occCell && occCell.pieceId !== curPiece.id) {
+                    ok = false; break;
+                  }
+                  if (c.kind === 'tile' && catsAt(bx,by)) {
+                    ok = false; break;
+                  }
+                }
+                if (!ok) continue;
+
+                // muodostetaan uusi tila
+                const nextState = cur.map((s, idx) =>
+                  idx === i
+                    ? { id: s.id, anchorX: ax, anchorY: ay, orientation: ori }
+                    : { ...s }
+                );
+
+                const k = stateKey(nextState);
+                if (parents.has(k)) continue; // jo nähty
+
+                parents.set(k, { parentKey: curKey, state: nextState });
+
+                if (isSolvedState(nextState)) {
+                  // rekonstruoi polku
+                  const path = [];
+                  let tKey = k;
+                  while (tKey) {
+                    const rec = parents.get(tKey);
+                    path.push(rec.state);
+                    tKey = rec.parentKey;
+                  }
+                  path.reverse();
+                  return path;
+                }
+
+                queue.push(nextState);
+              }
+            }
+          }
+        }
+      }
+
+      setMessage('Solveri ei löytänyt ratkaisua tästä asetelmasta.', 'error');
+      return null;
+    }
+
+    function buildSolverStepsFromPath(pathStates) {
+      const steps = [];
+      for (const st of pathStates) {
+        const snap = [];
+        for (const ps of pieceState) {
+          const s = st.find(x => x.id === ps.id);
+          snap.push({
+            id: ps.id,
+            onBoard: true,
+            anchorX: s.anchorX,
+            anchorY: s.anchorY,
+            orientation: s.orientation
+          });
+        }
+        steps.push(snap);
+      }
+      return steps;
+    }
+
+    // napit
+
+    rotateBtn.addEventListener('click', () => {
+      if (!selectedPieceId) {
+        setMessage('Ei palikkaa kädessä – napauta palikkaa laudalla ensin.', 'error');
+        return;
+      }
+      const ps = getPieceState(selectedPieceId);
+      const count = ps.variants.length;
+      ps.orientation = (ps.orientation + 1) % count;
+      clearSolverSteps();
+      renderPiecePreview();
+      setMessage(`${ps.name} käännetty (ori ${ps.orientation}).`, '');
+    });
+
+    resetBtn.addEventListener('click', () => {
+      if (!PUZZLES.length) return;
+      applyPuzzle(PUZZLES[currentPuzzleIndex]);
+      renderAll();
+      setMessage('Pulma palautettu alkuasetelmaansa.', '');
+    });
+
+    prevPuzzleBtn.addEventListener('click', () => {
+      gotoPuzzle(currentPuzzleIndex - 1);
+    });
+    nextPuzzleBtn.addEventListener('click', () => {
+      gotoPuzzle(currentPuzzleIndex + 1);
+    });
+
+    solveStepBtn.addEventListener('click', () => {
+      if (!PUZZLES.length) {
+        setMessage('Ei pulmia.', 'error');
+        return;
+      }
+      clearSolverSteps();
+
+      const path = solveFromCurrentBoard();
+      if (!path) return;
+
+      solverSteps = buildSolverStepsFromPath(path);
+      solverIndex = 0;
+      applySnapshot(solverSteps[0]);
+      renderAll();
+      setMessage(`Ratkaisu löydetty nykyisestä asetelmasta. Askel 1/${solverSteps.length}.`, 'ok');
+    });
+
+    nextStepBtn.addEventListener('click', () => {
+      if (!solverSteps || solverSteps.length === 0) {
+        setMessage('Ei aktiivista ratkaisua – paina ensin "Ratkaise (askelittain)".', 'error');
+        return;
+      }
+      solverIndex++;
+      if (solverIndex >= solverSteps.length) {
+        solverIndex = solverSteps.length - 1;
+        clearSolverSteps();
+        renderAll();
+        setMessage('Ratkaisu valmis.', 'ok');
+        return;
+      }
+      applySnapshot(solverSteps[solverIndex]);
+      renderAll();
+      setMessage(`Ratkaisu – askel ${solverIndex+1}/${solverSteps.length}.`, '');
+    });
+
+    async function loadPuzzles() {
+      try {
+        const resp = await fetch('cats_boxes_puzzles.json', { cache: 'no-cache' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        if (!Array.isArray(data) || !data.length) throw new Error('Tyhjä tai virheellinen JSON');
+        PUZZLES = data;
+        currentPuzzleIndex = 0;
+        applyPuzzle(PUZZLES[0]);
+        renderAll();
+        setMessage(`Ladattiin ${PUZZLES.length} pulmaa tiedostosta.`, '');
+      } catch (e) {
+        console.error('Pulmien lataus epäonnistui, käytetään varapulmia:', e);
+        PUZZLES = DEFAULT_PUZZLES;
+        currentPuzzleIndex = 0;
+        applyPuzzle(PUZZLES[0]);
+        renderAll();
+        setMessage('Pulmatiedoston lataus epäonnistui – käytetään sisäänrakennettua pulmaa.', 'error');
+      }
+    }
+
+// PWA: service worker iOS/Android/desktopille
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('./service-worker.js')
+      .catch(err => console.warn('Service workerin rekisteröinti epäonnistui:', err));
+  });
+}
+
+    (function init() {
+      loadPuzzles();
+    })();
+  </script>
+</body>
+</html>

@@ -299,11 +299,25 @@
         font-size: 1.05rem;
       }
     }
-	.preview-anchor {
-    display: none !important;
-}
-.piece-overlay-anchor {
-    display: none !important;
+    .preview-anchor {
+      display: none !important;
+    }
+    .piece-overlay-anchor {
+        display: none !important;
+    }
+/* iPadin vaakasuunnassa: suurennetaan koko UI 30 % */
+@media (min-device-width: 768px) and (max-device-width: 1024px)
+       and (orientation: landscape) {
+
+  html, body {
+    transform: scale(1.30);
+    transform-origin: top center;
+  }
+
+  /* pieni korjaus, ettei sisältö leikkaannu näytön alareunasta */
+  body {
+    padding-bottom: 40px;
+  }
 }
 
   </style>

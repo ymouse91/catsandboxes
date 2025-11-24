@@ -1044,6 +1044,19 @@
       setMessage(`${ps.name} käännetty (ori ${ps.orientation}).`, '');
     });
 
+piecePreviewEl.addEventListener('click', () => {
+  if (!selectedPieceId) {
+    setMessage('Ei palikkaa kädessä – napauta palikkaa laudalla ensin.', 'error');
+    return;
+  }
+  const ps = getPieceState(selectedPieceId);
+  const count = ps.variants.length;
+  ps.orientation = (ps.orientation + 1) % count;
+  clearSolverSteps();
+  renderPiecePreview();
+  setMessage(`${ps.name} käännetty (ori ${ps.orientation}).`, '');
+});
+
     resetBtn.addEventListener('click', () => {
       if (!PUZZLES.length) return;
       applyPuzzle(PUZZLES[currentPuzzleIndex]);

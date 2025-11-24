@@ -59,10 +59,5 @@ Kaikki oikeudet alkuperäiseen peliin kuuluvat **SmartGamesille** ja **Raf Peete
 ### Pelin pulmat ovat täysin uusia, eikä niitä ole kopioitu alkuperäisestä pelistä.
 
 
-------------- Cats & Boxes — Puzzle Game  
-*Digital adaptation of the SmartGames logic puzzle*
-
-**Alkuperäinen peli-idea:** Raf Peeters  
-**Julkaisija:** SmartGames
 
 

@@ -117,6 +117,19 @@
       content: "😺";
     }
 
+.box-with-cat::after {
+  content: "👀";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  pointer-events: none;
+  opacity: 0.85;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
     .piece-tile,
     .piece-box {
       position: absolute;
@@ -633,15 +646,24 @@
           }
 
           const occCell = occ[y][x];
-          if (occCell) {
-            const pieceCell = document.createElement('div');
-            if (occCell.kind === 'box') {
-              pieceCell.classList.add('piece-box', `piece-box-${occCell.pieceId}`);
-            } else {
-              pieceCell.classList.add('piece-tile', `piece-tile-${occCell.pieceId}`);
-            }
-            cellEl.appendChild(pieceCell);
-          }
+if (occCell) {
+  const pieceCell = document.createElement('div');
+
+  if (occCell.kind === 'box') {
+    pieceCell.classList.add('piece-box', `piece-box-${occCell.pieceId}`);
+
+    // ⭐ UUSI: tarkista onko laatikon alla kissa
+    if (catsAt(x, y)) {
+      pieceCell.classList.add('box-with-cat');
+    }
+
+  } else {
+    pieceCell.classList.add('piece-tile', `piece-tile-${occCell.pieceId}`);
+  }
+
+  cellEl.appendChild(pieceCell);
+}
+
 
           for (const ps of pieceState) {
             if (!ps.onBoard) continue;
